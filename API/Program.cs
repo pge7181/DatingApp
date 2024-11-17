@@ -13,10 +13,21 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 // Add SQLite database context.
-builder.Services.AddDbContext<DataContext>(options => 
+builder.Services.AddDbContext<DataContext>(options =>
 {
     var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
     options.UseSqlite(connectionString);
+});
+
+// Add CORS services
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.AllowAnyOrigin()  // Temporarily allow all origins
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
 });
 
 
@@ -29,6 +40,9 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+// Use CORS policy
+app.UseCors("AllowAll");  // Applying the "AllowAll" CORS policy
 
 // Optional: Use HTTPS redirection in development if configured.
 if (app.Environment.IsDevelopment() && app.Configuration["ASPNETCORE_URLS"]?.Contains("https") == true)
