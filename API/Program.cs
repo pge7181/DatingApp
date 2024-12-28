@@ -1,58 +1,79 @@
 using Microsoft.EntityFrameworkCore;
-using API.Data;  // Replace with the correct namespace for DataContext
-
-#nullable enable  // Enable nullable reference types if needed
+using API.Data;
+using API.Interfaces;
+using API.Services;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+// Add services to the container
 builder.Services.AddControllers();
 
-// Add Swagger services.
+// Add Swagger services
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Add SQLite database context.
+// Add scoped services
+builder.Services.AddScoped<ITokenService, TokenService>();
+
+// Configure JWT authentication
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["TokenKey"]!)),
+            ValidateIssuer = false,
+            ValidateAudience = false,
+        };
+    });
+
+// Configure SQLite database context
 builder.Services.AddDbContext<DataContext>(options =>
 {
     var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
     options.UseSqlite(connectionString);
 });
 
-// Add CORS services
+// Configure CORS policy
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
     {
-        policy.AllowAnyOrigin()  // Temporarily allow all origins
+        policy.AllowAnyOrigin()
               .AllowAnyMethod()
               .AllowAnyHeader();
     });
 });
 
-
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// Configure the HTTP request pipeline
 if (app.Environment.IsDevelopment())
 {
-    // Enable Swagger UI and endpoint in development mode.
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-// Use CORS policy
-app.UseCors("AllowAll");  // Applying the "AllowAll" CORS policy
+// Apply CORS policy
+app.UseCors("AllowAll");
 
-// Optional: Use HTTPS redirection in development if configured.
+// Use HTTPS redirection
 if (app.Environment.IsDevelopment() && app.Configuration["ASPNETCORE_URLS"]?.Contains("https") == true)
 {
     app.UseHttpsRedirection();
 }
 
-// Map controller routes.
+app.UseAuthentication();
+app.UseAuthorization();
+
+// Map controller routes
 app.MapControllers();
 
+// Example endpoint for weather forecast
 var summaries = new[]
 {
     "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
@@ -72,6 +93,7 @@ app.MapGet("/weatherforecast", () =>
 })
 .WithName("GetWeatherForecast");
 
+// Run the application
 app.Run();
 
 record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
